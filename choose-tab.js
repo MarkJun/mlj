@@ -1,3 +1,4 @@
+<script src="https://github.com/MarkJun/mlj/blob/master/choose-tab.js"></script>
 /**
  * 匹配元素 <input class="makeChooseListAction" id="chooseInput1" data="{{ $json }}"/>
  * 说明：
