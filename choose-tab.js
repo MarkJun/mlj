@@ -1,4 +1,3 @@
-<script src="https://github.com/MarkJun/mlj/blob/master/choose-tab.js"></script>
 /**
  * 匹配元素 <input class="makeChooseListAction" id="chooseInput1" data="{{ $json }}"/>
  * 说明：
@@ -34,6 +33,10 @@ Array.prototype.remove = function(val) {
         this.splice(index, 1);
     }
 };
+String.prototype.stripHTML = function() {
+    var reTag = /<(?:.|\s)*?>/g;
+    return this.replace(reTag,"");
+};
 ChooseActionTool = {
     id : null
     ,data : null
@@ -42,8 +45,9 @@ ChooseActionTool = {
     ,init : function(obj) {
         this.id = obj.attr('id');
         this.inputObj = obj;
+
         var data = this.parseData();
-        if(!data) return false;
+        if(! data.list) return false; //解码失败
 
         this.data = data.list;
 
@@ -55,7 +59,9 @@ ChooseActionTool = {
     }
     ,parseData : function(){
         try{
-            var data = JSON.parse(this.inputObj.attr('data'));
+            var data = this.inputObj.attr('data');
+            this.inputObj.removeAttr('data');
+            var data = JSON.parse(data);
         } catch (error) {
             return false;
         } finally {
@@ -76,23 +82,30 @@ ChooseActionTool = {
         htmlStr += '<table class="table table-hover"><thead><tr>';
         htmlStr += '<th>Select</th>';
         for(var i=0; i<fieldLen;i++) {
-            htmlStr += '<th>' + data.fields[i] + '</th>'
+            htmlStr += '<th>' + data.fields[i] + '</th>';
         }
         htmlStr += '</tr></thead><tbody>';
         for (var i=0; i<data.list.length; i++) {
             htmlStr += '<tr style="display:none" id="' + id + '-' + data.list[i].id + '" tip-id="'+data.list[i].id+'"><td><input type="checkbox" name="ChooseListBtn-'+this.id+'"></td>';
             for (var j=0; j<fieldLen; j++) {
                 var value = data.list[i][data.true_fields[j]];
+                if(typeof value === 'string')
+                {//如为字符串时去除html标签
+                    value = $.trim(value.stripHTML());  //去除html标签
+                    value = value.replace(/\s+/g, ' '); //去除多余空格
+                    value = value.replace(/\"/g, "'");  //转换"为'，便于title显示
+                }
                 if(data.true_fields[j]=='img') {
-
-                    htmlStr += '<td><img src="' + value + ' height="40"' + '</td>'
+                    htmlStr += '<td><img src="' + value + ' height="40"' + '</td>';
                 } else {
                     if(value==null){
-                        value = '';
+                        htmlStr += '<td> </td>';
                     }else if(value.length > 20) {
-                        value = value.substr(0,20) + '...';
+                        value1 = value.substr(0,20) + '...';
+                        htmlStr += '<td title="'+value.substr(0,500)+'">'+value1+'</td>';//最多title展示500字符
+                    } else {
+                        htmlStr += '<td>'+value+'</td>';
                     }
-                    htmlStr += '<td title="'+data.list[i][data.true_fields[j]]+'">'+value+'</td>'
                 }
             }
             htmlStr += '</tr>';
@@ -101,8 +114,6 @@ ChooseActionTool = {
 
         this.inputObj.after(htmlStr);
         this.showObj = this.inputObj.next('.ChooseListBox');
-        this.inputObj.removeAttr('data');
-        this.showObj.find('td').css('text-overflow', 'ellipsis ');
         return this;
     }
     ,setDefault : function(data){
@@ -127,6 +138,12 @@ ChooseActionTool = {
         var objId = this.id;
         this.inputObj.click(function(){
             showObj.slideToggle();
+        })
+
+        showObj.find('tbody tr').css('cursor','pointer').click(function(){
+            $(this).find('input').click();
+        }).find('input').click(function(e){
+            e.stopPropagation();
         })
 
         $('input[name="ChooseListBtn-' + this.id +'"]').each(function(){
@@ -165,10 +182,10 @@ ChooseActionTool = {
         })
         $('.searchIdChooseList.'+objId).keyup(function(){
             var id = parseInt($(this).val());
-            if(id != id) id = 0;
+            if(id != id) id = '';
 
             var name = $.trim($(this).next().val());
-            if(id) {
+            if(id || id === 0) {
                 $(this).val(id);
                 for (var i=objData.length-1; i>=0; i--) {
                     if(name!='') {
@@ -262,6 +279,7 @@ ChooseActionTool = {
 var chooseActionObj = $('input.makeChooseListAction');
 if(chooseActionObj.length) {
     chooseActionObj.each(function(){
-        ChooseActionTool.init($(this));
+        var res = ChooseActionTool.init($(this));
+        console.log(res)
     })
 }
